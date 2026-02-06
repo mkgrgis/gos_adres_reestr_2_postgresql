@@ -36,7 +36,7 @@ jobs:
           sudo systemctl restart postgresql;
 
       - name: Подготовка пользователя и БД PostgreSQL
-        run: bash GitHubActions/db_init.sh ${{ env.PGDATABASE }} ${{ env.PGDATABASE }} ${{ env.PGPASSWORD }};
+        run: bash GitHubActions/db_init.sh '${{ env.PGDATABASE }}' '${{ env.PGDATABASE }}' '${{ env.PGPASSWORD }}';
 
       - name: ГАР XSD
         run: bash GitHubActions/db_use.sh https://web.archive.org/web/20250921151758/https://fias.nalog.ru/docs/gar_schemas.zip ${{ env.test_schema }};
