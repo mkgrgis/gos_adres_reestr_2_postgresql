@@ -14,7 +14,7 @@ PGLIB_DIR := $(shell pkg-config --libs libpq)
 XLIB_DIR := $(shell pkg-config --libs libxml-2.0)
 
 # Compiler flags
-CFLAGS = -Wall -Wextra -pedantic $(XINC_DIR)$(PGINC_DIR)
+CFLAGS = -Wall -Wextra -pedantic $(XINC_DIR) $(PGINC_DIR)
 
 # Source files
 SRC = helper.c pg_in.c ГАР_XML2CSV.c
@@ -27,7 +27,7 @@ all: $(OUT)
 
 # Build the executable
 $(OUT): $(SRC)
-	$(CC) $(CFLAGS)-o $(OUT) $(SRC) $(XLIB_DIR)$(PGLIB_DIR);
+	$(CC) $(CFLAGS) -o $(OUT) $(SRC) $(XLIB_DIR) $(PGLIB_DIR);
 	mv $(OUT) ../$(OUT)
 
 # Clean target to remove the executable
