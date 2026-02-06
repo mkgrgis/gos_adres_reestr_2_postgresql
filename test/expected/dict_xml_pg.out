@@ -27,6 +27,22 @@ ALTER TABLE xsd.pg_tables ADD CONSTRAINT pg_tables_xml_pk PRIMARY KEY (xml_file_
 ALTER TABLE
 ALTER TABLE xsd.pg_tables ADD CONSTRAINT pg_tables_db_un UNIQUE (table_catalog,table_schema,table_name);
 ALTER TABLE
+COMMENT ON COLUMN xsd.pg_tables.table_catalog IS 'БД где размещается таблица';
+COMMENT
+COMMENT ON COLUMN xsd.pg_tables.table_schema IS 'Схема где размещается таблица';
+COMMENT
+COMMENT ON COLUMN xsd.pg_tables.table_name IS 'Название таблицы';
+COMMENT
+COMMENT ON COLUMN xsd.pg_tables.xml_file_prefix IS 'Транспортный префикс XML файла ГАР';
+COMMENT
+COMMENT ON COLUMN xsd.pg_tables.xsd_filename IS 'Название XSD файла, описывающего XML файл ГАР';
+COMMENT
+COMMENT ON COLUMN xsd.pg_tables.root_node IS 'Название корневого узла трансопртного XML файла ГАР';
+COMMENT
+COMMENT ON COLUMN xsd.pg_tables.singular_transport_node IS 'Название типового узла трансопртного XML файла ГАР';
+COMMENT
+COMMENT ON COLUMN xsd.pg_tables.xsd_descr_singular IS 'Описание смыслового содержания XSD';
+COMMENT
 create table xsd.pg_columns as
 with c as (
 select *
@@ -53,6 +69,22 @@ ALTER TABLE
 ALTER TABLE xsd.pg_columns ADD CONSTRAINT pg_columns_fk FOREIGN KEY (table_catalog,table_schema,table_name)
 REFERENCES xsd.pg_tables(table_catalog,table_schema,table_name) ON DELETE CASCADE ON UPDATE CASCADE;
 ALTER TABLE
+COMMENT ON COLUMN xsd.pg_columns.table_catalog IS 'БД где размещается колонка';
+COMMENT
+COMMENT ON COLUMN xsd.pg_columns.table_schema IS 'Схема где размещается колонка';
+COMMENT
+COMMENT ON COLUMN xsd.pg_columns.table_name IS 'Таблица где размещается колонка';
+COMMENT
+COMMENT ON COLUMN xsd.pg_columns.column_name IS 'Название колонки';
+COMMENT
+COMMENT ON COLUMN xsd.pg_columns.ordinal_position IS 'Порядковый № колонки в рамках таблицы';
+COMMENT
+COMMENT ON COLUMN xsd.pg_columns.transport_attribute IS 'Название атрибута типового узла файла XML ГАР, из которого заполянется колонка';
+COMMENT
+COMMENT ON COLUMN xsd.pg_columns.xml_file_prefix IS 'Транспортный префикс XML файла ГАР';
+COMMENT
+COMMENT ON COLUMN xsd.pg_columns.xsd_filename IS 'Название XSD файла, описывающего XML файл ГАР';
+COMMENT
 create view xsd.program_call_parameters as
 with col_ord as (
 select table_catalog, table_schema, table_name,
