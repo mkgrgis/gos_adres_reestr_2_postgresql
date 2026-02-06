@@ -1,0 +1,54 @@
+name: Проверка загрузчика данных ГАР в PostgreSQL
+
+on:
+  workflow_dispatch:
+  pull_request:
+  push:
+    branches:
+      - master
+      - main
+jobs:
+  test:
+    env:
+      GAR_YEAR: "2026"
+    strategy:
+      fail-fast: false
+
+    name: Разворачивание метаданных ГАР
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: tar
+        run: |
+          tar zcvf gos_adres_reestr_2_postgresql.tar.gz ./*
+          chmod +x ./*.sh -v
+
+      - name: Установка PostgreSQL, библиотек для компиляции утилиты, местных стандартов вывода
+        run: |
+          sudo apt install postgresql postgresql-contrib libxml2-dev libpq-dev language-pack-ru-base language-pack-ru -y
+          sudo locale-gen ru_RU
+
+      - name: Подготовка пользователя и БД PostgreSQL
+        run: |
+          sudo systemctl restart postgresql;
+          pg_lsclusters;
+          bash GitHubActions/db_init.sh;
+
+      - name: ГАР XSD
+        run: bash GitHubActions/db_use.sh https://web.archive.org/web/20250921151758/https://fias.nalog.ru/docs/gar_schemas.zip;
+
+      - name: Компиляция утилиты
+        run: (cd C; make all;)
+
+      - name: Тест разворачивания метаданных
+        run: bash GitHubActions/db_test.sh
+
+      - name: Скачивание артефактов провала для анализа
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.pg }}-${{ matrix.config }}-test-results
+          path: |
+            test/
+          retention-days: 4
