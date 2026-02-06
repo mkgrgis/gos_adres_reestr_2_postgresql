@@ -7,7 +7,7 @@
 
 select '-- Схема целевых таблиц называется "' || set_config('ГАР.схема', 'data', false) ||'";';
 
--- Сотнесение таблиц в выбранной схеме с эталонной структурой ГАР
+-- Соотнесение таблиц в выбранной схеме с эталонной структурой ГАР
 -- Создание таблицы переноса данных XML в таблицы
 create table xsd.pg_tables as
 with t as (
@@ -30,6 +30,15 @@ select table_catalog,
 
 ALTER TABLE xsd.pg_tables ADD CONSTRAINT pg_tables_xml_pk PRIMARY KEY (xml_file_prefix);
 ALTER TABLE xsd.pg_tables ADD CONSTRAINT pg_tables_db_un UNIQUE (table_catalog,table_schema,table_name);
+
+COMMENT ON COLUMN xsd.pg_tables.table_catalog IS 'БД где размещается таблица';
+COMMENT ON COLUMN xsd.pg_tables.table_schema IS 'Схема где размещается таблица';
+COMMENT ON COLUMN xsd.pg_tables.table_name IS 'Название таблицы';
+COMMENT ON COLUMN xsd.pg_tables.xml_file_prefix IS 'Транспортный префикс XML файла ГАР';
+COMMENT ON COLUMN xsd.pg_tables.xsd_filename IS 'Название XSD файла, описывающего XML файл ГАР';
+COMMENT ON COLUMN xsd.pg_tables.root_node IS 'Название корневого узла трансопртного XML файла ГАР';
+COMMENT ON COLUMN xsd.pg_tables.singular_transport_node IS 'Название типового узла трансопртного XML файла ГАР';
+COMMENT ON COLUMN xsd.pg_tables.xsd_descr_singular IS 'Описание смыслового содержания XSD';
 
 -- Сотнесение колонок таблиц в выбранной схеме с эталонной структурой ГАР
 -- Создание таблицы переноса значений XML атрибутов в колонки
@@ -60,6 +69,15 @@ ALTER TABLE xsd.pg_columns ADD CONSTRAINT pg_columns_db_un UNIQUE (table_catalog
 -- При редактировании соответствия таблиц, колонки переносятся вслед за своей таблицей
 ALTER TABLE xsd.pg_columns ADD CONSTRAINT pg_columns_fk FOREIGN KEY (table_catalog,table_schema,table_name)
 REFERENCES xsd.pg_tables(table_catalog,table_schema,table_name) ON DELETE CASCADE ON UPDATE CASCADE;
+
+COMMENT ON COLUMN xsd.pg_columns.table_catalog IS 'БД где размещается колонка';
+COMMENT ON COLUMN xsd.pg_columns.table_schema IS 'Схема где размещается колонка';
+COMMENT ON COLUMN xsd.pg_columns.table_name IS 'Таблица где размещается колонка';
+COMMENT ON COLUMN xsd.pg_columns.column_name IS 'Название колонки';
+COMMENT ON COLUMN xsd.pg_columns.ordinal_position IS 'Порядковый № колонки в рамках таблицы';
+COMMENT ON COLUMN xsd.pg_columns.transport_attribute IS 'Название атрибута типового узла файла XML ГАР, из которого заполянется колонка';
+COMMENT ON COLUMN xsd.pg_columns.xml_file_prefix IS 'Транспортный префикс XML файла ГАР';
+COMMENT ON COLUMN xsd.pg_columns.xsd_filename IS 'Название XSD файла, описывающего XML файл ГАР';
 
 -- Параметры вызова программы
 -- формируются динамически из действующих словарей соответствия
