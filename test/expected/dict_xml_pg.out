@@ -1,0 +1,418 @@
+select '-- Схема целевых таблиц называется "' || set_config('ГАР.схема', 'data', false) ||'";';
+                  ?column?                  
+--------------------------------------------
+ -- Схема целевых таблиц называется "data";
+(1 row)
+
+create table xsd.pg_tables as
+with t as (
+select *
+  from information_schema."tables" t
+ where t.table_catalog = 'Государственный адресный реестр'
+   and t.table_schema = current_setting('ГАР.схема', false)
+)   
+select table_catalog,
+       table_schema,
+       table_name,
+       tf.xml_file_prefix,
+       tf.xsd_filename,
+       tf.root_node,
+       tf.singular_transport_node,
+       tf.xsd_descr_singular
+  from t
+  full join xsd.transport_files tf
+ using (table_name);
+SELECT 29
+ALTER TABLE xsd.pg_tables ADD CONSTRAINT pg_tables_xml_pk PRIMARY KEY (xml_file_prefix);
+ALTER TABLE
+ALTER TABLE xsd.pg_tables ADD CONSTRAINT pg_tables_db_un UNIQUE (table_catalog,table_schema,table_name);
+ALTER TABLE
+create table xsd.pg_columns as
+with c as (
+select *
+  from information_schema."columns" c
+ where c.table_catalog = 'Государственный адресный реестр'
+   and c.table_schema = current_setting('ГАР.схема', false)
+   )
+select table_catalog,
+       table_schema,
+       table_name,
+       column_name,
+       ordinal_position,
+       transport_attribute,
+       xml_file_prefix,
+       xsd_filename
+  from c
+  full join xsd.transport_attributes ta
+ using (table_name, column_name);
+SELECT 275
+ALTER TABLE xsd.pg_columns ADD CONSTRAINT pg_columns_xml_un UNIQUE (transport_attribute,xml_file_prefix);
+ALTER TABLE
+ALTER TABLE xsd.pg_columns ADD CONSTRAINT pg_columns_db_un UNIQUE (table_catalog,table_schema,table_name,column_name);
+ALTER TABLE
+ALTER TABLE xsd.pg_columns ADD CONSTRAINT pg_columns_fk FOREIGN KEY (table_catalog,table_schema,table_name)
+REFERENCES xsd.pg_tables(table_catalog,table_schema,table_name) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE
+create view xsd.program_call_parameters as
+with col_ord as (
+select table_catalog, table_schema, table_name,
+       transport_attribute, root_node, singular_transport_node, pt.xml_file_prefix
+  from xsd.pg_columns pc
+ inner join xsd.pg_tables pt
+ using (table_catalog, table_schema, table_name)  
+  --where pc.xml_file_prefix ~ '^PARAM.*'
+order by table_catalog, table_schema, table_name, ordinal_position asc)
+select table_name,
+       xml_file_prefix, 
+       ' -t ''"' || table_schema || '"."' || table_name || '"''' ||
+       ' -a ''' || string_agg(transport_attribute, ',') || '''' ||       
+       ' -p ''' || root_node || '/' || singular_transport_node || ''' ' "bash"       
+from col_ord
+group by table_catalog, table_schema, table_name, root_node, singular_transport_node, xml_file_prefix;
+CREATE VIEW
+select * from xsd.pg_tables;
+          table_catalog          | table_schema |            table_name             |   xml_file_prefix    |                 xsd_filename                  |     root_node      | singular_transport_node |                                         xsd_descr_singular                                         
+---------------------------------+--------------+-----------------------------------+----------------------+-----------------------------------------------+--------------------+-------------------------+----------------------------------------------------------------------------------------------------
+ Государственный адресный реестр | data         | Адресообразующие элементы         | ADDR_OBJ             | AS_ADDR_OBJ_2_251_01_04_01_01.xsd             | ADDRESSOBJECTS     | OBJECT                  | Сведения классификатора адресообразующих элементов
+ Государственный адресный реестр | data         | Операции переподчинения           | ADDR_OBJ_DIVISION    | AS_ADDR_OBJ_DIVISION_2_251_19_04_01_01.xsd    | ITEMS              | ITEM                    | Сведения по операциям переподчинения
+ Государственный адресный реестр | data         | Типы адресных объектов            | ADDR_OBJ_TYPES       | AS_ADDR_OBJ_TYPES_2_251_03_04_01_01.xsd       | ADDRESSOBJECTTYPES | ADDRESSOBJECTTYPE       | Сведения по типам адресных объектов
+ Государственный адресный реестр | data         | Иерархия административная         | ADM_HIERARCHY        | AS_ADM_HIERARCHY_2_251_04_04_01_01.xsd        | ITEMS              | ITEM                    | Сведения по иерархии в административном делении
+ Государственный адресный реестр | data         | Помещения                         | APARTMENTS           | AS_APARTMENTS_2_251_05_04_01_01.xsd           | APARTMENTS         | APARTMENT               | Сведения по помещениям
+ Государственный адресный реестр | data         | Типы помещений                    | APARTMENT_TYPES      | AS_APARTMENT_TYPES_2_251_07_04_01_01.xsd      | APARTMENTTYPES     | APARTMENTTYPE           | Сведения по типам помещений
+ Государственный адресный реестр | data         | Машино-места                      | CARPLACES            | AS_CARPLACES_2_251_06_04_01_01.xsd            | CARPLACES          | CARPLACE                | Сведения по машино-местам
+ Государственный адресный реестр | data         | История изменений                 | CHANGE_HISTORY       | AS_CHANGE_HISTORY_251_21_04_01_01.xsd         | ITEMS              | ITEM                    | Сведения по истории изменений
+ Государственный адресный реестр | data         | № домов улиц населённых пунктов   | HOUSES               | AS_HOUSES_2_251_08_04_01_01.xsd               | HOUSES             | HOUSE                   | Сведения по номерам домов улиц городов и населенных пунктов
+ Государственный адресный реестр | data         | Типы домов                        | HOUSE_TYPES          | AS_HOUSE_TYPES_2_251_13_04_01_01.xsd          | HOUSETYPES         | HOUSETYPE               | Сведения по типам домов
+ Государственный адресный реестр | data         | Иерархия муниципальная            | MUN_HIERARCHY        | AS_MUN_HIERARCHY_2_251_10_04_01_01.xsd        | ITEMS              | ITEM                    | Сведения по иерархии в муниципальном делении
+ Государственный адресный реестр | data         | Документы обоснования адресации   | NORMATIVE_DOCS       | AS_NORMATIVE_DOCS_2_251_11_04_01_01.xsd       | NORMDOCS           | NORMDOC                 | Сведения о нормативном документе, являющемся основанием присвоения адресному элементу наименования
+                                 |              | Виды нормативных документов       | NORMATIVE_DOCS_KINDS | AS_NORMATIVE_DOCS_KINDS_2_251_09_04_01_01.xsd | NDOCKINDS          | NDOCKIND                | Сведения по видам нормативных документов
+                                 |              | Типы нормативных документов       | NORMATIVE_DOCS_TYPES | AS_NORMATIVE_DOCS_TYPES_2_251_16_04_01_01.xsd | NDOCTYPES          | NDOCTYPE                | Сведения по типам нормативных документов
+ Государственный адресный реестр | data         | Уровни адресных объектов          | OBJECT_LEVELS        | AS_OBJECT_LEVELS_2_251_12_04_01_01.xsd        | OBJECTLEVELS       | OBJECTLEVEL             | Сведения по уровням адресных объектов
+ Государственный адресный реестр | data         | Статусы действия                  | OPERATION_TYPES      | AS_OPERATION_TYPES_2_251_14_04_01_01.xsd      | OPERATIONTYPES     | OPERATIONTYPE           | Сведения по статусу действия
+ Государственный адресный реестр | data         | Параметры адр. эл. и недвижимости | PARAM                | AS_PARAM_2_251_02_04_01_01.xsd                | PARAMS             | PARAM                   | Сведения о классификаторе параметров адресообразующих элементов и объектов недвижимости 
+ Государственный адресный реестр | data         | Типы параметров                   | PARAM_TYPES          | AS_PARAM_TYPES_2_251_20_04_01_01.xsd          | PARAMTYPES         | PARAMTYPE               | Сведения по типу параметра
+ Государственный адресный реестр | data         | Коды адресных элементов           | REESTR_OBJECTS       | AS_REESTR_OBJECTS_2_251_22_04_01_01.xsd       | REESTR_OBJECTS     | OBJECT                  | Сведения об адресном элементе в части его идентификаторов
+ Государственный адресный реестр | data         | Комнаты                           | ROOMS                | AS_ROOMS_2_251_15_04_01_01.xsd                | ROOMS              | ROOM                    | Сведения по комнатам
+ Государственный адресный реестр | data         | Типы комнат                       | ROOM_TYPES           | AS_ROOM_TYPES_2_251_17_04_01_01.xsd           | ROOMTYPES          | ROOMTYPE                | Сведения по типам комнат
+ Государственный адресный реестр | data         | Земельные участки                 | STEADS               | AS_STEADS_2_251_18_04_01_01.xsd               | STEADS             | STEAD                   | Сведения по земельным участкам
+ Государственный адресный реестр | data         | Параметры земельных участков      | STEADS_PARAMS        | AS_PARAM_2_251_02_04_01_01.xsd                | PARAMS             | PARAM                   | Сведения о классификаторе параметров адресообразующих элементов и объектов недвижимости 
+ Государственный адресный реестр | data         | Параметры домов                   | HOUSES_PARAMS        | AS_PARAM_2_251_02_04_01_01.xsd                | PARAMS             | PARAM                   | Сведения о классификаторе параметров адресообразующих элементов и объектов недвижимости 
+ Государственный адресный реестр | data         | Параметры помещений               | ROOMS_PARAMS         | AS_PARAM_2_251_02_04_01_01.xsd                | PARAMS             | PARAM                   | Сведения о классификаторе параметров адресообразующих элементов и объектов недвижимости 
+ Государственный адресный реестр | data         | Параметры машиномест              | CARPLACES_PARAMS     | AS_PARAM_2_251_02_04_01_01.xsd                | PARAMS             | PARAM                   | Сведения о классификаторе параметров адресообразующих элементов и объектов недвижимости 
+ Государственный адресный реестр | data         | Параметры адресных объектов       | ADDR_OBJ_PARAMS      | AS_PARAM_2_251_02_04_01_01.xsd                | PARAMS             | PARAM                   | Сведения о классификаторе параметров адресообразующих элементов и объектов недвижимости 
+ Государственный адресный реестр | data         | Добавочные параметры домов        | ADDHOUSE_TYPES       | AS_PARAM_2_251_02_04_01_01.xsd                | PARAMS             | PARAM                   | Сведения о классификаторе параметров адресообразующих элементов и объектов недвижимости 
+ Государственный адресный реестр | data         | Параметры квартир                 | APARTMENTS_PARAMS    | AS_PARAM_2_251_02_04_01_01.xsd                | PARAMS             | PARAM                   | Сведения о классификаторе параметров адресообразующих элементов и объектов недвижимости 
+(29 rows)
+
+select * from xsd.pg_columns;
+          table_catalog          | table_schema |            table_name             |             column_name             | ordinal_position | transport_attribute |   xml_file_prefix    |                xsd_filename                
+---------------------------------+--------------+-----------------------------------+-------------------------------------+------------------+---------------------+----------------------+--------------------------------------------
+ Государственный адресный реестр | data         | Адресообразующие элементы         | Ключ                                |                1 | ID                  | ADDR_OBJ             | AS_ADDR_OBJ_2_251_01_04_01_01.xsd
+ Государственный адресный реестр | data         | Адресообразующие элементы         | Код адр. об. типа INTEGER           |                2 | OBJECTID            | ADDR_OBJ             | AS_ADDR_OBJ_2_251_01_04_01_01.xsd
+ Государственный адресный реестр | data         | Адресообразующие элементы         | Код адр. об. типа UUID              |                3 | OBJECTGUID          | ADDR_OBJ             | AS_ADDR_OBJ_2_251_01_04_01_01.xsd
+ Государственный адресный реестр | data         | Адресообразующие элементы         | ID изменившей транзакции            |                4 | CHANGEID            | ADDR_OBJ             | AS_ADDR_OBJ_2_251_01_04_01_01.xsd
+ Государственный адресный реестр | data         | Адресообразующие элементы         | Наим.                               |                5 | NAME                | ADDR_OBJ             | AS_ADDR_OBJ_2_251_01_04_01_01.xsd
+ Государственный адресный реестр | data         | Адресообразующие элементы         | Краткое наим. типа объекта          |                6 | TYPENAME            | ADDR_OBJ             | AS_ADDR_OBJ_2_251_01_04_01_01.xsd
+ Государственный адресный реестр | data         | Адресообразующие элементы         | Уровень адр. об.                    |                7 | LEVEL               | ADDR_OBJ             | AS_ADDR_OBJ_2_251_01_04_01_01.xsd
+ Государственный адресный реестр | data         | Адресообразующие элементы         | Статус действия над записью         |                8 | OPERTYPEID          | ADDR_OBJ             | AS_ADDR_OBJ_2_251_01_04_01_01.xsd
+ Государственный адресный реестр | data         | Адресообразующие элементы         | Код с предыдущей истор. зап.        |                9 | PREVID              | ADDR_OBJ             | AS_ADDR_OBJ_2_251_01_04_01_01.xsd
+ Государственный адресный реестр | data         | Адресообразующие элементы         | Код с последующей истор. зап.       |               10 | NEXTID              | ADDR_OBJ             | AS_ADDR_OBJ_2_251_01_04_01_01.xsd
+ Государственный адресный реестр | data         | Адресообразующие элементы         | Дата внесения                       |               11 | UPDATEDATE          | ADDR_OBJ             | AS_ADDR_OBJ_2_251_01_04_01_01.xsd
+ Государственный адресный реестр | data         | Адресообразующие элементы         | Начало действия записи              |               12 | STARTDATE           | ADDR_OBJ             | AS_ADDR_OBJ_2_251_01_04_01_01.xsd
+ Государственный адресный реестр | data         | Адресообразующие элементы         | Окончание действия записи           |               13 | ENDDATE             | ADDR_OBJ             | AS_ADDR_OBJ_2_251_01_04_01_01.xsd
+ Государственный адресный реестр | data         | Адресообразующие элементы         | Статус актуальности адр. об. ФИАС   |               14 | ISACTUAL            | ADDR_OBJ             | AS_ADDR_OBJ_2_251_01_04_01_01.xsd
+ Государственный адресный реестр | data         | Адресообразующие элементы         | Признак действующего адр. об.       |               15 | ISACTIVE            | ADDR_OBJ             | AS_ADDR_OBJ_2_251_01_04_01_01.xsd
+ Государственный адресный реестр | data         | Операции переподчинения           | Ключ                                |                1 | ID                  | ADDR_OBJ_DIVISION    | AS_ADDR_OBJ_DIVISION_2_251_19_04_01_01.xsd
+ Государственный адресный реестр | data         | Операции переподчинения           | Родительский ID                     |                2 | PARENTID            | ADDR_OBJ_DIVISION    | AS_ADDR_OBJ_DIVISION_2_251_19_04_01_01.xsd
+ Государственный адресный реестр | data         | Операции переподчинения           | Дочерний ID                         |                3 | CHILDID             | ADDR_OBJ_DIVISION    | AS_ADDR_OBJ_DIVISION_2_251_19_04_01_01.xsd
+ Государственный адресный реестр | data         | Операции переподчинения           | ID изменившей транзакции            |                4 | CHANGEID            | ADDR_OBJ_DIVISION    | AS_ADDR_OBJ_DIVISION_2_251_19_04_01_01.xsd
+ Государственный адресный реестр | data         | Типы адресных объектов            | Код записи                          |                1 | ID                  | ADDR_OBJ_TYPES       | AS_ADDR_OBJ_TYPES_2_251_03_04_01_01.xsd
+ Государственный адресный реестр | data         | Типы адресных объектов            | Уровень адр. об.                    |                2 | LEVEL               | ADDR_OBJ_TYPES       | AS_ADDR_OBJ_TYPES_2_251_03_04_01_01.xsd
+ Государственный адресный реестр | data         | Типы адресных объектов            | Краткое наим. типа объекта          |                3 | SHORTNAME           | ADDR_OBJ_TYPES       | AS_ADDR_OBJ_TYPES_2_251_03_04_01_01.xsd
+ Государственный адресный реестр | data         | Типы адресных объектов            | Полное наим. типа объекта           |                4 | NAME                | ADDR_OBJ_TYPES       | AS_ADDR_OBJ_TYPES_2_251_03_04_01_01.xsd
+ Государственный адресный реестр | data         | Типы адресных объектов            | Описание                            |                5 | DESC                | ADDR_OBJ_TYPES       | AS_ADDR_OBJ_TYPES_2_251_03_04_01_01.xsd
+ Государственный адресный реестр | data         | Типы адресных объектов            | Дата внесения                       |                6 | UPDATEDATE          | ADDR_OBJ_TYPES       | AS_ADDR_OBJ_TYPES_2_251_03_04_01_01.xsd
+ Государственный адресный реестр | data         | Типы адресных объектов            | Начало действия записи              |                7 | STARTDATE           | ADDR_OBJ_TYPES       | AS_ADDR_OBJ_TYPES_2_251_03_04_01_01.xsd
+ Государственный адресный реестр | data         | Типы адресных объектов            | Окончание действия записи           |                8 | ENDDATE             | ADDR_OBJ_TYPES       | AS_ADDR_OBJ_TYPES_2_251_03_04_01_01.xsd
+ Государственный адресный реестр | data         | Типы адресных объектов            | Статус активности                   |                9 | ISACTIVE            | ADDR_OBJ_TYPES       | AS_ADDR_OBJ_TYPES_2_251_03_04_01_01.xsd
+ Государственный адресный реестр | data         | Иерархия административная         | Ключ                                |                1 | ID                  | ADM_HIERARCHY        | AS_ADM_HIERARCHY_2_251_04_04_01_01.xsd
+ Государственный адресный реестр | data         | Иерархия административная         | Код объекта                         |                2 | OBJECTID            | ADM_HIERARCHY        | AS_ADM_HIERARCHY_2_251_04_04_01_01.xsd
+ Государственный адресный реестр | data         | Иерархия административная         | Код родительского объекта           |                3 | PARENTOBJID         | ADM_HIERARCHY        | AS_ADM_HIERARCHY_2_251_04_04_01_01.xsd
+ Государственный адресный реестр | data         | Иерархия административная         | ID изменившей транзакции            |                4 | CHANGEID            | ADM_HIERARCHY        | AS_ADM_HIERARCHY_2_251_04_04_01_01.xsd
+ Государственный адресный реестр | data         | Иерархия административная         | Код региона                         |                5 | REGIONCODE          | ADM_HIERARCHY        | AS_ADM_HIERARCHY_2_251_04_04_01_01.xsd
+ Государственный адресный реестр | data         | Иерархия административная         | Код района                          |                6 | AREACODE            | ADM_HIERARCHY        | AS_ADM_HIERARCHY_2_251_04_04_01_01.xsd
+ Государственный адресный реестр | data         | Иерархия административная         | Код города                          |                7 | CITYCODE            | ADM_HIERARCHY        | AS_ADM_HIERARCHY_2_251_04_04_01_01.xsd
+ Государственный адресный реестр | data         | Иерархия административная         | Код населенного пункта              |                8 | PLACECODE           | ADM_HIERARCHY        | AS_ADM_HIERARCHY_2_251_04_04_01_01.xsd
+ Государственный адресный реестр | data         | Иерархия административная         | Код ЭПС                             |                9 | PLANCODE            | ADM_HIERARCHY        | AS_ADM_HIERARCHY_2_251_04_04_01_01.xsd
+ Государственный адресный реестр | data         | Иерархия административная         | Код улицы                           |               10 | STREETCODE          | ADM_HIERARCHY        | AS_ADM_HIERARCHY_2_251_04_04_01_01.xsd
+ Государственный адресный реестр | data         | Иерархия административная         | Код с предыдущей истор. зап.        |               11 | PREVID              | ADM_HIERARCHY        | AS_ADM_HIERARCHY_2_251_04_04_01_01.xsd
+ Государственный адресный реестр | data         | Иерархия административная         | Код с последующей истор. зап.       |               12 | NEXTID              | ADM_HIERARCHY        | AS_ADM_HIERARCHY_2_251_04_04_01_01.xsd
+ Государственный адресный реестр | data         | Иерархия административная         | Дата внесения                       |               13 | UPDATEDATE          | ADM_HIERARCHY        | AS_ADM_HIERARCHY_2_251_04_04_01_01.xsd
+ Государственный адресный реестр | data         | Иерархия административная         | Начало действия записи              |               14 | STARTDATE           | ADM_HIERARCHY        | AS_ADM_HIERARCHY_2_251_04_04_01_01.xsd
+ Государственный адресный реестр | data         | Иерархия административная         | Окончание действия записи           |               15 | ENDDATE             | ADM_HIERARCHY        | AS_ADM_HIERARCHY_2_251_04_04_01_01.xsd
+ Государственный адресный реестр | data         | Иерархия административная         | Признак действующего адр. об.       |               16 | ISACTIVE            | ADM_HIERARCHY        | AS_ADM_HIERARCHY_2_251_04_04_01_01.xsd
+ Государственный адресный реестр | data         | Иерархия административная         | Материализованный путь к объекту    |               17 | PATH                | ADM_HIERARCHY        | AS_ADM_HIERARCHY_2_251_04_04_01_01.xsd
+ Государственный адресный реестр | data         | Помещения                         | Ключ                                |                1 | ID                  | APARTMENTS           | AS_APARTMENTS_2_251_05_04_01_01.xsd
+ Государственный адресный реестр | data         | Помещения                         | Код объекта типа INTEGER            |                2 | OBJECTID            | APARTMENTS           | AS_APARTMENTS_2_251_05_04_01_01.xsd
+ Государственный адресный реестр | data         | Помещения                         | Код адр. об. типа UUID              |                3 | OBJECTGUID          | APARTMENTS           | AS_APARTMENTS_2_251_05_04_01_01.xsd
+ Государственный адресный реестр | data         | Помещения                         | ID изменившей транзакции            |                4 | CHANGEID            | APARTMENTS           | AS_APARTMENTS_2_251_05_04_01_01.xsd
+ Государственный адресный реестр | data         | Помещения                         | № комнаты                           |                5 | NUMBER              | APARTMENTS           | AS_APARTMENTS_2_251_05_04_01_01.xsd
+ Государственный адресный реестр | data         | Помещения                         | Тип комнаты                         |                6 | APARTTYPE           | APARTMENTS           | AS_APARTMENTS_2_251_05_04_01_01.xsd
+ Государственный адресный реестр | data         | Помещения                         | Статус действия над записью         |                7 | OPERTYPEID          | APARTMENTS           | AS_APARTMENTS_2_251_05_04_01_01.xsd
+ Государственный адресный реестр | data         | Помещения                         | Код с предыдущей истор. зап.        |                8 | PREVID              | APARTMENTS           | AS_APARTMENTS_2_251_05_04_01_01.xsd
+ Государственный адресный реестр | data         | Помещения                         | Код с последующей истор. зап.       |                9 | NEXTID              | APARTMENTS           | AS_APARTMENTS_2_251_05_04_01_01.xsd
+ Государственный адресный реестр | data         | Помещения                         | Дата внесения                       |               10 | UPDATEDATE          | APARTMENTS           | AS_APARTMENTS_2_251_05_04_01_01.xsd
+ Государственный адресный реестр | data         | Помещения                         | Начало действия записи              |               11 | STARTDATE           | APARTMENTS           | AS_APARTMENTS_2_251_05_04_01_01.xsd
+ Государственный адресный реестр | data         | Помещения                         | Окончание действия записи           |               12 | ENDDATE             | APARTMENTS           | AS_APARTMENTS_2_251_05_04_01_01.xsd
+ Государственный адресный реестр | data         | Помещения                         | Статус актуальности адр. об. ФИАС   |               13 | ISACTUAL            | APARTMENTS           | AS_APARTMENTS_2_251_05_04_01_01.xsd
+ Государственный адресный реестр | data         | Помещения                         | Признак действующего адр. об.       |               14 | ISACTIVE            | APARTMENTS           | AS_APARTMENTS_2_251_05_04_01_01.xsd
+ Государственный адресный реестр | data         | Типы помещений                    | Код типа                            |                1 | ID                  | APARTMENT_TYPES      | AS_APARTMENT_TYPES_2_251_07_04_01_01.xsd
+ Государственный адресный реестр | data         | Типы помещений                    | Наим.                               |                2 | NAME                | APARTMENT_TYPES      | AS_APARTMENT_TYPES_2_251_07_04_01_01.xsd
+ Государственный адресный реестр | data         | Типы помещений                    | Краткое наим.                       |                3 | SHORTNAME           | APARTMENT_TYPES      | AS_APARTMENT_TYPES_2_251_07_04_01_01.xsd
+ Государственный адресный реестр | data         | Типы помещений                    | Описание                            |                4 | DESC                | APARTMENT_TYPES      | AS_APARTMENT_TYPES_2_251_07_04_01_01.xsd
+ Государственный адресный реестр | data         | Типы помещений                    | Дата внесения                       |                5 | UPDATEDATE          | APARTMENT_TYPES      | AS_APARTMENT_TYPES_2_251_07_04_01_01.xsd
+ Государственный адресный реестр | data         | Типы помещений                    | Начало действия записи              |                6 | STARTDATE           | APARTMENT_TYPES      | AS_APARTMENT_TYPES_2_251_07_04_01_01.xsd
+ Государственный адресный реестр | data         | Типы помещений                    | Окончание действия записи           |                7 | ENDDATE             | APARTMENT_TYPES      | AS_APARTMENT_TYPES_2_251_07_04_01_01.xsd
+ Государственный адресный реестр | data         | Типы помещений                    | Статус активности                   |                8 | ISACTIVE            | APARTMENT_TYPES      | AS_APARTMENT_TYPES_2_251_07_04_01_01.xsd
+ Государственный адресный реестр | data         | Машино-места                      | Ключ                                |                1 | ID                  | CARPLACES            | AS_CARPLACES_2_251_06_04_01_01.xsd
+ Государственный адресный реестр | data         | Машино-места                      | Код объекта типа INTEGER            |                2 | OBJECTID            | CARPLACES            | AS_CARPLACES_2_251_06_04_01_01.xsd
+ Государственный адресный реестр | data         | Машино-места                      | Код адр. об. типа UUID              |                3 | OBJECTGUID          | CARPLACES            | AS_CARPLACES_2_251_06_04_01_01.xsd
+ Государственный адресный реестр | data         | Машино-места                      | ID изменившей транзакции            |                4 | CHANGEID            | CARPLACES            | AS_CARPLACES_2_251_06_04_01_01.xsd
+ Государственный адресный реестр | data         | Машино-места                      | № машиноместа                       |                5 | NUMBER              | CARPLACES            | AS_CARPLACES_2_251_06_04_01_01.xsd
+ Государственный адресный реестр | data         | Машино-места                      | Статус действия над записью         |                6 | OPERTYPEID          | CARPLACES            | AS_CARPLACES_2_251_06_04_01_01.xsd
+ Государственный адресный реестр | data         | Машино-места                      | Код с предыдущей истор. зап.        |                7 | PREVID              | CARPLACES            | AS_CARPLACES_2_251_06_04_01_01.xsd
+ Государственный адресный реестр | data         | Машино-места                      | Код с последующей истор. зап.       |                8 | NEXTID              | CARPLACES            | AS_CARPLACES_2_251_06_04_01_01.xsd
+ Государственный адресный реестр | data         | Машино-места                      | Дата внесения                       |                9 | UPDATEDATE          | CARPLACES            | AS_CARPLACES_2_251_06_04_01_01.xsd
+ Государственный адресный реестр | data         | Машино-места                      | Начало действия записи              |               10 | STARTDATE           | CARPLACES            | AS_CARPLACES_2_251_06_04_01_01.xsd
+ Государственный адресный реестр | data         | Машино-места                      | Окончание действия записи           |               11 | ENDDATE             | CARPLACES            | AS_CARPLACES_2_251_06_04_01_01.xsd
+ Государственный адресный реестр | data         | Машино-места                      | Статус актуальности адр. об. ФИАС   |               12 | ISACTUAL            | CARPLACES            | AS_CARPLACES_2_251_06_04_01_01.xsd
+ Государственный адресный реестр | data         | Машино-места                      | Признак действующего адр. об.       |               13 | ISACTIVE            | CARPLACES            | AS_CARPLACES_2_251_06_04_01_01.xsd
+ Государственный адресный реестр | data         | История изменений                 | ID изменившей транзакции            |                1 | CHANGEID            | CHANGE_HISTORY       | AS_CHANGE_HISTORY_251_21_04_01_01.xsd
+ Государственный адресный реестр | data         | История изменений                 | Уник. ID объекта                    |                2 | OBJECTID            | CHANGE_HISTORY       | AS_CHANGE_HISTORY_251_21_04_01_01.xsd
+ Государственный адресный реестр | data         | История изменений                 | Уник. ID изменившей транзакции      |                3 | ADROBJECTID         | CHANGE_HISTORY       | AS_CHANGE_HISTORY_251_21_04_01_01.xsd
+ Государственный адресный реестр | data         | История изменений                 | Тип операции                        |                4 | OPERTYPEID          | CHANGE_HISTORY       | AS_CHANGE_HISTORY_251_21_04_01_01.xsd
+ Государственный адресный реестр | data         | История изменений                 | ID д-та                             |                5 | NDOCID              | CHANGE_HISTORY       | AS_CHANGE_HISTORY_251_21_04_01_01.xsd
+ Государственный адресный реестр | data         | История изменений                 | Дата изменения                      |                6 | CHANGEDATE          | CHANGE_HISTORY       | AS_CHANGE_HISTORY_251_21_04_01_01.xsd
+ Государственный адресный реестр | data         | № домов улиц населённых пунктов   | Ключ                                |                1 | ID                  | HOUSES               | AS_HOUSES_2_251_08_04_01_01.xsd
+ Государственный адресный реестр | data         | № домов улиц населённых пунктов   | Код объекта типа INTEGER            |                2 | OBJECTID            | HOUSES               | AS_HOUSES_2_251_08_04_01_01.xsd
+ Государственный адресный реестр | data         | № домов улиц населённых пунктов   | Код адр. об. типа UUID              |                3 | OBJECTGUID          | HOUSES               | AS_HOUSES_2_251_08_04_01_01.xsd
+ Государственный адресный реестр | data         | № домов улиц населённых пунктов   | ID изменившей транзакции            |                4 | CHANGEID            | HOUSES               | AS_HOUSES_2_251_08_04_01_01.xsd
+ Государственный адресный реестр | data         | № домов улиц населённых пунктов   | Основной № дома                     |                5 | HOUSENUM            | HOUSES               | AS_HOUSES_2_251_08_04_01_01.xsd
+ Государственный адресный реестр | data         | № домов улиц населённых пунктов   | Дополнительный № дома 1             |                6 | ADDNUM1             | HOUSES               | AS_HOUSES_2_251_08_04_01_01.xsd
+ Государственный адресный реестр | data         | № домов улиц населённых пунктов   | Дополнительный № дома 2             |                7 | ADDNUM2             | HOUSES               | AS_HOUSES_2_251_08_04_01_01.xsd
+ Государственный адресный реестр | data         | № домов улиц населённых пунктов   | Основной тип дома                   |                8 | HOUSETYPE           | HOUSES               | AS_HOUSES_2_251_08_04_01_01.xsd
+ Государственный адресный реестр | data         | № домов улиц населённых пунктов   | Дополнительный тип дома 1           |                9 | ADDTYPE1            | HOUSES               | AS_HOUSES_2_251_08_04_01_01.xsd
+ Государственный адресный реестр | data         | № домов улиц населённых пунктов   | Дополнительный тип дома 2           |               10 | ADDTYPE2            | HOUSES               | AS_HOUSES_2_251_08_04_01_01.xsd
+ Государственный адресный реестр | data         | № домов улиц населённых пунктов   | Статус действия над записью         |               11 | OPERTYPEID          | HOUSES               | AS_HOUSES_2_251_08_04_01_01.xsd
+ Государственный адресный реестр | data         | № домов улиц населённых пунктов   | Код с предыдущей истор. зап.        |               12 | PREVID              | HOUSES               | AS_HOUSES_2_251_08_04_01_01.xsd
+ Государственный адресный реестр | data         | № домов улиц населённых пунктов   | Код с последующей истор. зап.       |               13 | NEXTID              | HOUSES               | AS_HOUSES_2_251_08_04_01_01.xsd
+ Государственный адресный реестр | data         | № домов улиц населённых пунктов   | Дата внесения                       |               14 | UPDATEDATE          | HOUSES               | AS_HOUSES_2_251_08_04_01_01.xsd
+ Государственный адресный реестр | data         | № домов улиц населённых пунктов   | Начало действия записи              |               15 | STARTDATE           | HOUSES               | AS_HOUSES_2_251_08_04_01_01.xsd
+ Государственный адресный реестр | data         | № домов улиц населённых пунктов   | Окончание действия записи           |               16 | ENDDATE             | HOUSES               | AS_HOUSES_2_251_08_04_01_01.xsd
+ Государственный адресный реестр | data         | № домов улиц населённых пунктов   | Статус актуальности адр. об. ФИАС   |               17 | ISACTUAL            | HOUSES               | AS_HOUSES_2_251_08_04_01_01.xsd
+ Государственный адресный реестр | data         | № домов улиц населённых пунктов   | Признак действующего адр. об.       |               18 | ISACTIVE            | HOUSES               | AS_HOUSES_2_251_08_04_01_01.xsd
+ Государственный адресный реестр | data         | Типы домов                        | Код                                 |                1 | ID                  | HOUSE_TYPES          | AS_HOUSE_TYPES_2_251_13_04_01_01.xsd
+ Государственный адресный реестр | data         | Типы домов                        | Наим.                               |                2 | NAME                | HOUSE_TYPES          | AS_HOUSE_TYPES_2_251_13_04_01_01.xsd
+ Государственный адресный реестр | data         | Типы домов                        | Краткое наим.                       |                3 | SHORTNAME           | HOUSE_TYPES          | AS_HOUSE_TYPES_2_251_13_04_01_01.xsd
+ Государственный адресный реестр | data         | Типы домов                        | Описание                            |                4 | DESC                | HOUSE_TYPES          | AS_HOUSE_TYPES_2_251_13_04_01_01.xsd
+ Государственный адресный реестр | data         | Типы домов                        | Дата внесения                       |                5 | UPDATEDATE          | HOUSE_TYPES          | AS_HOUSE_TYPES_2_251_13_04_01_01.xsd
+ Государственный адресный реестр | data         | Типы домов                        | Начало действия записи              |                6 | STARTDATE           | HOUSE_TYPES          | AS_HOUSE_TYPES_2_251_13_04_01_01.xsd
+ Государственный адресный реестр | data         | Типы домов                        | Окончание действия записи           |                7 | ENDDATE             | HOUSE_TYPES          | AS_HOUSE_TYPES_2_251_13_04_01_01.xsd
+ Государственный адресный реестр | data         | Типы домов                        | Статус активности                   |                8 | ISACTIVE            | HOUSE_TYPES          | AS_HOUSE_TYPES_2_251_13_04_01_01.xsd
+ Государственный адресный реестр | data         | Иерархия муниципальная            | Ключ                                |                1 | ID                  | MUN_HIERARCHY        | AS_MUN_HIERARCHY_2_251_10_04_01_01.xsd
+ Государственный адресный реестр | data         | Иерархия муниципальная            | Код адр. об.                        |                2 | OBJECTID            | MUN_HIERARCHY        | AS_MUN_HIERARCHY_2_251_10_04_01_01.xsd
+ Государственный адресный реестр | data         | Иерархия муниципальная            | Код родительского объекта           |                3 | PARENTOBJID         | MUN_HIERARCHY        | AS_MUN_HIERARCHY_2_251_10_04_01_01.xsd
+ Государственный адресный реестр | data         | Иерархия муниципальная            | ID изменившей транзакции            |                4 | CHANGEID            | MUN_HIERARCHY        | AS_MUN_HIERARCHY_2_251_10_04_01_01.xsd
+ Государственный адресный реестр | data         | Иерархия муниципальная            | Код ОКТМО                           |                5 | OKTMO               | MUN_HIERARCHY        | AS_MUN_HIERARCHY_2_251_10_04_01_01.xsd
+ Государственный адресный реестр | data         | Иерархия муниципальная            | Код с предыдущей истор. зап.        |                6 | PREVID              | MUN_HIERARCHY        | AS_MUN_HIERARCHY_2_251_10_04_01_01.xsd
+ Государственный адресный реестр | data         | Иерархия муниципальная            | Код с последующей истор. зап.       |                7 | NEXTID              | MUN_HIERARCHY        | AS_MUN_HIERARCHY_2_251_10_04_01_01.xsd
+ Государственный адресный реестр | data         | Иерархия муниципальная            | Дата внесения                       |                8 | UPDATEDATE          | MUN_HIERARCHY        | AS_MUN_HIERARCHY_2_251_10_04_01_01.xsd
+ Государственный адресный реестр | data         | Иерархия муниципальная            | Начало действия записи              |                9 | STARTDATE           | MUN_HIERARCHY        | AS_MUN_HIERARCHY_2_251_10_04_01_01.xsd
+ Государственный адресный реестр | data         | Иерархия муниципальная            | Окончание действия записи           |               10 | ENDDATE             | MUN_HIERARCHY        | AS_MUN_HIERARCHY_2_251_10_04_01_01.xsd
+ Государственный адресный реестр | data         | Иерархия муниципальная            | Признак действующего адр. об.       |               11 | ISACTIVE            | MUN_HIERARCHY        | AS_MUN_HIERARCHY_2_251_10_04_01_01.xsd
+ Государственный адресный реестр | data         | Иерархия муниципальная            | Материализованный путь к объекту    |               12 | PATH                | MUN_HIERARCHY        | AS_MUN_HIERARCHY_2_251_10_04_01_01.xsd
+ Государственный адресный реестр | data         | Документы обоснования адресации   | Уник. идентификатор д-та            |                1 | ID                  | NORMATIVE_DOCS       | AS_NORMATIVE_DOCS_2_251_11_04_01_01.xsd
+ Государственный адресный реестр | data         | Документы обоснования адресации   | Наим. д-та                          |                2 | NAME                | NORMATIVE_DOCS       | AS_NORMATIVE_DOCS_2_251_11_04_01_01.xsd
+ Государственный адресный реестр | data         | Документы обоснования адресации   | Дата д-та                           |                3 | DATE                | NORMATIVE_DOCS       | AS_NORMATIVE_DOCS_2_251_11_04_01_01.xsd
+ Государственный адресный реестр | data         | Документы обоснования адресации   | № д-та                              |                4 | NUMBER              | NORMATIVE_DOCS       | AS_NORMATIVE_DOCS_2_251_11_04_01_01.xsd
+ Государственный адресный реестр | data         | Документы обоснования адресации   | Тип д-та                            |                5 | TYPE                | NORMATIVE_DOCS       | AS_NORMATIVE_DOCS_2_251_11_04_01_01.xsd
+ Государственный адресный реестр | data         | Документы обоснования адресации   | Вид д-та                            |                6 | KIND                | NORMATIVE_DOCS       | AS_NORMATIVE_DOCS_2_251_11_04_01_01.xsd
+ Государственный адресный реестр | data         | Документы обоснования адресации   | Дата обновления                     |                7 | UPDATEDATE          | NORMATIVE_DOCS       | AS_NORMATIVE_DOCS_2_251_11_04_01_01.xsd
+ Государственный адресный реестр | data         | Документы обоснования адресации   | Наим. органа создвшего нор-ый д-т   |                8 | ORGNAME             | NORMATIVE_DOCS       | AS_NORMATIVE_DOCS_2_251_11_04_01_01.xsd
+ Государственный адресный реестр | data         | Документы обоснования адресации   | № государственной регистрации       |                9 | REGNUM              | NORMATIVE_DOCS       | AS_NORMATIVE_DOCS_2_251_11_04_01_01.xsd
+ Государственный адресный реестр | data         | Документы обоснования адресации   | Дата государственной регистрации    |               10 | REGDATE             | NORMATIVE_DOCS       | AS_NORMATIVE_DOCS_2_251_11_04_01_01.xsd
+ Государственный адресный реестр | data         | Документы обоснования адресации   | Дата вступления в силу нор-ого д-та |               11 | ACCDATE             | NORMATIVE_DOCS       | AS_NORMATIVE_DOCS_2_251_11_04_01_01.xsd
+ Государственный адресный реестр | data         | Документы обоснования адресации   | Комментарий                         |               12 | COMMENT             | NORMATIVE_DOCS       | AS_NORMATIVE_DOCS_2_251_11_04_01_01.xsd
+ Государственный адресный реестр | data         | Уровни адресных объектов          | Ключ. № уровня объекта              |                1 | LEVEL               | OBJECT_LEVELS        | AS_OBJECT_LEVELS_2_251_12_04_01_01.xsd
+ Государственный адресный реестр | data         | Уровни адресных объектов          | Наим.                               |                2 | NAME                | OBJECT_LEVELS        | AS_OBJECT_LEVELS_2_251_12_04_01_01.xsd
+ Государственный адресный реестр | data         | Уровни адресных объектов          | Краткое наим.                       |                3 | SHORTNAME           | OBJECT_LEVELS        | AS_OBJECT_LEVELS_2_251_12_04_01_01.xsd
+ Государственный адресный реестр | data         | Уровни адресных объектов          | Дата внесения                       |                4 | UPDATEDATE          | OBJECT_LEVELS        | AS_OBJECT_LEVELS_2_251_12_04_01_01.xsd
+ Государственный адресный реестр | data         | Уровни адресных объектов          | Начало действия записи              |                5 | STARTDATE           | OBJECT_LEVELS        | AS_OBJECT_LEVELS_2_251_12_04_01_01.xsd
+ Государственный адресный реестр | data         | Уровни адресных объектов          | Окончание действия записи           |                6 | ENDDATE             | OBJECT_LEVELS        | AS_OBJECT_LEVELS_2_251_12_04_01_01.xsd
+ Государственный адресный реестр | data         | Уровни адресных объектов          | Признак действующего адр. об.       |                7 | ISACTIVE            | OBJECT_LEVELS        | AS_OBJECT_LEVELS_2_251_12_04_01_01.xsd
+ Государственный адресный реестр | data         | Статусы действия                  | Код статуса                         |                1 | ID                  | OPERATION_TYPES      | AS_OPERATION_TYPES_2_251_14_04_01_01.xsd
+ Государственный адресный реестр | data         | Статусы действия                  | Наим.                               |                2 | NAME                | OPERATION_TYPES      | AS_OPERATION_TYPES_2_251_14_04_01_01.xsd
+ Государственный адресный реестр | data         | Статусы действия                  | Краткое наим.                       |                3 | SHORTNAME           | OPERATION_TYPES      | AS_OPERATION_TYPES_2_251_14_04_01_01.xsd
+ Государственный адресный реестр | data         | Статусы действия                  | Описание                            |                4 | DESC                | OPERATION_TYPES      | AS_OPERATION_TYPES_2_251_14_04_01_01.xsd
+ Государственный адресный реестр | data         | Статусы действия                  | Дата внесения                       |                5 | UPDATEDATE          | OPERATION_TYPES      | AS_OPERATION_TYPES_2_251_14_04_01_01.xsd
+ Государственный адресный реестр | data         | Статусы действия                  | Начало действия записи              |                6 | STARTDATE           | OPERATION_TYPES      | AS_OPERATION_TYPES_2_251_14_04_01_01.xsd
+ Государственный адресный реестр | data         | Статусы действия                  | Окончание действия записи           |                7 | ENDDATE             | OPERATION_TYPES      | AS_OPERATION_TYPES_2_251_14_04_01_01.xsd
+ Государственный адресный реестр | data         | Статусы действия                  | Статус активности                   |                8 | ISACTIVE            | OPERATION_TYPES      | AS_OPERATION_TYPES_2_251_14_04_01_01.xsd
+ Государственный адресный реестр | data         | Параметры квартир                 | Код записи                          |                1 | ID                  | APARTMENTS_PARAMS    | AS_PARAM_2_251_02_04_01_01.xsd
+ Государственный адресный реестр | data         | Добавочные параметры домов        | Код записи                          |                1 | ID                  | ADDHOUSE_TYPES       | AS_PARAM_2_251_02_04_01_01.xsd
+ Государственный адресный реестр | data         | Параметры адресных объектов       | Код записи                          |                1 | ID                  | ADDR_OBJ_PARAMS      | AS_PARAM_2_251_02_04_01_01.xsd
+ Государственный адресный реестр | data         | Параметры машиномест              | Код записи                          |                1 | ID                  | CARPLACES_PARAMS     | AS_PARAM_2_251_02_04_01_01.xsd
+ Государственный адресный реестр | data         | Параметры помещений               | Код записи                          |                1 | ID                  | ROOMS_PARAMS         | AS_PARAM_2_251_02_04_01_01.xsd
+ Государственный адресный реестр | data         | Параметры домов                   | Код записи                          |                1 | ID                  | HOUSES_PARAMS        | AS_PARAM_2_251_02_04_01_01.xsd
+ Государственный адресный реестр | data         | Параметры земельных участков      | Код записи                          |                1 | ID                  | STEADS_PARAMS        | AS_PARAM_2_251_02_04_01_01.xsd
+ Государственный адресный реестр | data         | Параметры адр. эл. и недвижимости | Код записи                          |                1 | ID                  | PARAM                | AS_PARAM_2_251_02_04_01_01.xsd
+ Государственный адресный реестр | data         | Параметры квартир                 | Код адр. об.                        |                2 | OBJECTID            | APARTMENTS_PARAMS    | AS_PARAM_2_251_02_04_01_01.xsd
+ Государственный адресный реестр | data         | Добавочные параметры домов        | Код адр. об.                        |                2 | OBJECTID            | ADDHOUSE_TYPES       | AS_PARAM_2_251_02_04_01_01.xsd
+ Государственный адресный реестр | data         | Параметры адресных объектов       | Код адр. об.                        |                2 | OBJECTID            | ADDR_OBJ_PARAMS      | AS_PARAM_2_251_02_04_01_01.xsd
+ Государственный адресный реестр | data         | Параметры машиномест              | Код адр. об.                        |                2 | OBJECTID            | CARPLACES_PARAMS     | AS_PARAM_2_251_02_04_01_01.xsd
+ Государственный адресный реестр | data         | Параметры помещений               | Код адр. об.                        |                2 | OBJECTID            | ROOMS_PARAMS         | AS_PARAM_2_251_02_04_01_01.xsd
+ Государственный адресный реестр | data         | Параметры домов                   | Код адр. об.                        |                2 | OBJECTID            | HOUSES_PARAMS        | AS_PARAM_2_251_02_04_01_01.xsd
+ Государственный адресный реестр | data         | Параметры земельных участков      | Код адр. об.                        |                2 | OBJECTID            | STEADS_PARAMS        | AS_PARAM_2_251_02_04_01_01.xsd
+ Государственный адресный реестр | data         | Параметры адр. эл. и недвижимости | Код адр. об.                        |                2 | OBJECTID            | PARAM                | AS_PARAM_2_251_02_04_01_01.xsd
+ Государственный адресный реестр | data         | Параметры квартир                 | ID изменившей транзакции            |                3 | CHANGEID            | APARTMENTS_PARAMS    | AS_PARAM_2_251_02_04_01_01.xsd
+ Государственный адресный реестр | data         | Добавочные параметры домов        | ID изменившей транзакции            |                3 | CHANGEID            | ADDHOUSE_TYPES       | AS_PARAM_2_251_02_04_01_01.xsd
+ Государственный адресный реестр | data         | Параметры адресных объектов       | ID изменившей транзакции            |                3 | CHANGEID            | ADDR_OBJ_PARAMS      | AS_PARAM_2_251_02_04_01_01.xsd
+ Государственный адресный реестр | data         | Параметры машиномест              | ID изменившей транзакции            |                3 | CHANGEID            | CARPLACES_PARAMS     | AS_PARAM_2_251_02_04_01_01.xsd
+ Государственный адресный реестр | data         | Параметры помещений               | ID изменившей транзакции            |                3 | CHANGEID            | ROOMS_PARAMS         | AS_PARAM_2_251_02_04_01_01.xsd
+ Государственный адресный реестр | data         | Параметры домов                   | ID изменившей транзакции            |                3 | CHANGEID            | HOUSES_PARAMS        | AS_PARAM_2_251_02_04_01_01.xsd
+ Государственный адресный реестр | data         | Параметры земельных участков      | ID изменившей транзакции            |                3 | CHANGEID            | STEADS_PARAMS        | AS_PARAM_2_251_02_04_01_01.xsd
+ Государственный адресный реестр | data         | Параметры адр. эл. и недвижимости | ID изменившей транзакции            |                3 | CHANGEID            | PARAM                | AS_PARAM_2_251_02_04_01_01.xsd
+ Государственный адресный реестр | data         | Параметры квартир                 | ID завершившей транзакции           |                4 | CHANGEIDEND         | APARTMENTS_PARAMS    | AS_PARAM_2_251_02_04_01_01.xsd
+ Государственный адресный реестр | data         | Добавочные параметры домов        | ID завершившей транзакции           |                4 | CHANGEIDEND         | ADDHOUSE_TYPES       | AS_PARAM_2_251_02_04_01_01.xsd
+ Государственный адресный реестр | data         | Параметры адресных объектов       | ID завершившей транзакции           |                4 | CHANGEIDEND         | ADDR_OBJ_PARAMS      | AS_PARAM_2_251_02_04_01_01.xsd
+ Государственный адресный реестр | data         | Параметры машиномест              | ID завершившей транзакции           |                4 | CHANGEIDEND         | CARPLACES_PARAMS     | AS_PARAM_2_251_02_04_01_01.xsd
+ Государственный адресный реестр | data         | Параметры помещений               | ID завершившей транзакции           |                4 | CHANGEIDEND         | ROOMS_PARAMS         | AS_PARAM_2_251_02_04_01_01.xsd
+ Государственный адресный реестр | data         | Параметры домов                   | ID завершившей транзакции           |                4 | CHANGEIDEND         | HOUSES_PARAMS        | AS_PARAM_2_251_02_04_01_01.xsd
+ Государственный адресный реестр | data         | Параметры земельных участков      | ID завершившей транзакции           |                4 | CHANGEIDEND         | STEADS_PARAMS        | AS_PARAM_2_251_02_04_01_01.xsd
+ Государственный адресный реестр | data         | Параметры адр. эл. и недвижимости | ID завершившей транзакции           |                4 | CHANGEIDEND         | PARAM                | AS_PARAM_2_251_02_04_01_01.xsd
+ Государственный адресный реестр | data         | Параметры квартир                 | Тип параметра                       |                5 | TYPEID              | APARTMENTS_PARAMS    | AS_PARAM_2_251_02_04_01_01.xsd
+ Государственный адресный реестр | data         | Добавочные параметры домов        | Тип параметра                       |                5 | TYPEID              | ADDHOUSE_TYPES       | AS_PARAM_2_251_02_04_01_01.xsd
+ Государственный адресный реестр | data         | Параметры адресных объектов       | Тип параметра                       |                5 | TYPEID              | ADDR_OBJ_PARAMS      | AS_PARAM_2_251_02_04_01_01.xsd
+ Государственный адресный реестр | data         | Параметры машиномест              | Тип параметра                       |                5 | TYPEID              | CARPLACES_PARAMS     | AS_PARAM_2_251_02_04_01_01.xsd
+ Государственный адресный реестр | data         | Параметры помещений               | Тип параметра                       |                5 | TYPEID              | ROOMS_PARAMS         | AS_PARAM_2_251_02_04_01_01.xsd
+ Государственный адресный реестр | data         | Параметры домов                   | Тип параметра                       |                5 | TYPEID              | HOUSES_PARAMS        | AS_PARAM_2_251_02_04_01_01.xsd
+ Государственный адресный реестр | data         | Параметры земельных участков      | Тип параметра                       |                5 | TYPEID              | STEADS_PARAMS        | AS_PARAM_2_251_02_04_01_01.xsd
+ Государственный адресный реестр | data         | Параметры адр. эл. и недвижимости | Тип параметра                       |                5 | TYPEID              | PARAM                | AS_PARAM_2_251_02_04_01_01.xsd
+ Государственный адресный реестр | data         | Параметры квартир                 | Значение параметра                  |                6 | VALUE               | APARTMENTS_PARAMS    | AS_PARAM_2_251_02_04_01_01.xsd
+ Государственный адресный реестр | data         | Добавочные параметры домов        | Значение параметра                  |                6 | VALUE               | ADDHOUSE_TYPES       | AS_PARAM_2_251_02_04_01_01.xsd
+ Государственный адресный реестр | data         | Параметры адресных объектов       | Значение параметра                  |                6 | VALUE               | ADDR_OBJ_PARAMS      | AS_PARAM_2_251_02_04_01_01.xsd
+ Государственный адресный реестр | data         | Параметры машиномест              | Значение параметра                  |                6 | VALUE               | CARPLACES_PARAMS     | AS_PARAM_2_251_02_04_01_01.xsd
+ Государственный адресный реестр | data         | Параметры помещений               | Значение параметра                  |                6 | VALUE               | ROOMS_PARAMS         | AS_PARAM_2_251_02_04_01_01.xsd
+ Государственный адресный реестр | data         | Параметры домов                   | Значение параметра                  |                6 | VALUE               | HOUSES_PARAMS        | AS_PARAM_2_251_02_04_01_01.xsd
+ Государственный адресный реестр | data         | Параметры земельных участков      | Значение параметра                  |                6 | VALUE               | STEADS_PARAMS        | AS_PARAM_2_251_02_04_01_01.xsd
+ Государственный адресный реестр | data         | Параметры адр. эл. и недвижимости | Значение параметра                  |                6 | VALUE               | PARAM                | AS_PARAM_2_251_02_04_01_01.xsd
+ Государственный адресный реестр | data         | Параметры квартир                 | Дата внесения                       |                7 | UPDATEDATE          | APARTMENTS_PARAMS    | AS_PARAM_2_251_02_04_01_01.xsd
+ Государственный адресный реестр | data         | Добавочные параметры домов        | Дата внесения                       |                7 | UPDATEDATE          | ADDHOUSE_TYPES       | AS_PARAM_2_251_02_04_01_01.xsd
+ Государственный адресный реестр | data         | Параметры адресных объектов       | Дата внесения                       |                7 | UPDATEDATE          | ADDR_OBJ_PARAMS      | AS_PARAM_2_251_02_04_01_01.xsd
+ Государственный адресный реестр | data         | Параметры машиномест              | Дата внесения                       |                7 | UPDATEDATE          | CARPLACES_PARAMS     | AS_PARAM_2_251_02_04_01_01.xsd
+ Государственный адресный реестр | data         | Параметры помещений               | Дата внесения                       |                7 | UPDATEDATE          | ROOMS_PARAMS         | AS_PARAM_2_251_02_04_01_01.xsd
+ Государственный адресный реестр | data         | Параметры домов                   | Дата внесения                       |                7 | UPDATEDATE          | HOUSES_PARAMS        | AS_PARAM_2_251_02_04_01_01.xsd
+ Государственный адресный реестр | data         | Параметры земельных участков      | Дата внесения                       |                7 | UPDATEDATE          | STEADS_PARAMS        | AS_PARAM_2_251_02_04_01_01.xsd
+ Государственный адресный реестр | data         | Параметры адр. эл. и недвижимости | Дата внесения                       |                7 | UPDATEDATE          | PARAM                | AS_PARAM_2_251_02_04_01_01.xsd
+ Государственный адресный реестр | data         | Параметры квартир                 | Дата начала действия записи         |                8 | STARTDATE           | APARTMENTS_PARAMS    | AS_PARAM_2_251_02_04_01_01.xsd
+ Государственный адресный реестр | data         | Добавочные параметры домов        | Дата начала действия записи         |                8 | STARTDATE           | ADDHOUSE_TYPES       | AS_PARAM_2_251_02_04_01_01.xsd
+ Государственный адресный реестр | data         | Параметры адресных объектов       | Дата начала действия записи         |                8 | STARTDATE           | ADDR_OBJ_PARAMS      | AS_PARAM_2_251_02_04_01_01.xsd
+ Государственный адресный реестр | data         | Параметры машиномест              | Дата начала действия записи         |                8 | STARTDATE           | CARPLACES_PARAMS     | AS_PARAM_2_251_02_04_01_01.xsd
+ Государственный адресный реестр | data         | Параметры помещений               | Дата начала действия записи         |                8 | STARTDATE           | ROOMS_PARAMS         | AS_PARAM_2_251_02_04_01_01.xsd
+ Государственный адресный реестр | data         | Параметры домов                   | Дата начала действия записи         |                8 | STARTDATE           | HOUSES_PARAMS        | AS_PARAM_2_251_02_04_01_01.xsd
+ Государственный адресный реестр | data         | Параметры земельных участков      | Дата начала действия записи         |                8 | STARTDATE           | STEADS_PARAMS        | AS_PARAM_2_251_02_04_01_01.xsd
+ Государственный адресный реестр | data         | Параметры адр. эл. и недвижимости | Дата начала действия записи         |                8 | STARTDATE           | PARAM                | AS_PARAM_2_251_02_04_01_01.xsd
+ Государственный адресный реестр | data         | Параметры квартир                 | Дата окончания действия записи      |                9 | ENDDATE             | APARTMENTS_PARAMS    | AS_PARAM_2_251_02_04_01_01.xsd
+ Государственный адресный реестр | data         | Добавочные параметры домов        | Дата окончания действия записи      |                9 | ENDDATE             | ADDHOUSE_TYPES       | AS_PARAM_2_251_02_04_01_01.xsd
+ Государственный адресный реестр | data         | Параметры адресных объектов       | Дата окончания действия записи      |                9 | ENDDATE             | ADDR_OBJ_PARAMS      | AS_PARAM_2_251_02_04_01_01.xsd
+ Государственный адресный реестр | data         | Параметры машиномест              | Дата окончания действия записи      |                9 | ENDDATE             | CARPLACES_PARAMS     | AS_PARAM_2_251_02_04_01_01.xsd
+ Государственный адресный реестр | data         | Параметры помещений               | Дата окончания действия записи      |                9 | ENDDATE             | ROOMS_PARAMS         | AS_PARAM_2_251_02_04_01_01.xsd
+ Государственный адресный реестр | data         | Параметры домов                   | Дата окончания действия записи      |                9 | ENDDATE             | HOUSES_PARAMS        | AS_PARAM_2_251_02_04_01_01.xsd
+ Государственный адресный реестр | data         | Параметры земельных участков      | Дата окончания действия записи      |                9 | ENDDATE             | STEADS_PARAMS        | AS_PARAM_2_251_02_04_01_01.xsd
+ Государственный адресный реестр | data         | Параметры адр. эл. и недвижимости | Дата окончания действия записи      |                9 | ENDDATE             | PARAM                | AS_PARAM_2_251_02_04_01_01.xsd
+ Государственный адресный реестр | data         | Типы параметров                   | Код типа параметра                  |                1 | ID                  | PARAM_TYPES          | AS_PARAM_TYPES_2_251_20_04_01_01.xsd
+ Государственный адресный реестр | data         | Типы параметров                   | Наим.                               |                2 | NAME                | PARAM_TYPES          | AS_PARAM_TYPES_2_251_20_04_01_01.xsd
+ Государственный адресный реестр | data         | Типы параметров                   | Краткое наим.                       |                3 | CODE                | PARAM_TYPES          | AS_PARAM_TYPES_2_251_20_04_01_01.xsd
+ Государственный адресный реестр | data         | Типы параметров                   | Описание                            |                4 | DESC                | PARAM_TYPES          | AS_PARAM_TYPES_2_251_20_04_01_01.xsd
+ Государственный адресный реестр | data         | Типы параметров                   | Дата внесения                       |                5 | UPDATEDATE          | PARAM_TYPES          | AS_PARAM_TYPES_2_251_20_04_01_01.xsd
+ Государственный адресный реестр | data         | Типы параметров                   | Начало действия записи              |                6 | STARTDATE           | PARAM_TYPES          | AS_PARAM_TYPES_2_251_20_04_01_01.xsd
+ Государственный адресный реестр | data         | Типы параметров                   | Окончание действия записи           |                7 | ENDDATE             | PARAM_TYPES          | AS_PARAM_TYPES_2_251_20_04_01_01.xsd
+ Государственный адресный реестр | data         | Типы параметров                   | Статус активности                   |                8 | ISACTIVE            | PARAM_TYPES          | AS_PARAM_TYPES_2_251_20_04_01_01.xsd
+ Государственный адресный реестр | data         | Коды адресных элементов           | Уник. идентификатор объекта         |                1 | OBJECTID            | REESTR_OBJECTS       | AS_REESTR_OBJECTS_2_251_22_04_01_01.xsd
+ Государственный адресный реестр | data         | Коды адресных элементов           | Дата создания                       |                2 | CREATEDATE          | REESTR_OBJECTS       | AS_REESTR_OBJECTS_2_251_22_04_01_01.xsd
+ Государственный адресный реестр | data         | Коды адресных элементов           | ID изменившей транзакции            |                3 | CHANGEID            | REESTR_OBJECTS       | AS_REESTR_OBJECTS_2_251_22_04_01_01.xsd
+ Государственный адресный реестр | data         | Коды адресных элементов           | Уровень объекта                     |                4 | LEVELID             | REESTR_OBJECTS       | AS_REESTR_OBJECTS_2_251_22_04_01_01.xsd
+ Государственный адресный реестр | data         | Коды адресных элементов           | Дата обновления                     |                5 | UPDATEDATE          | REESTR_OBJECTS       | AS_REESTR_OBJECTS_2_251_22_04_01_01.xsd
+ Государственный адресный реестр | data         | Коды адресных элементов           | GUID объекта                        |                6 | OBJECTGUID          | REESTR_OBJECTS       | AS_REESTR_OBJECTS_2_251_22_04_01_01.xsd
+ Государственный адресный реестр | data         | Коды адресных элементов           | Признак действующего объекта        |                7 | ISACTIVE            | REESTR_OBJECTS       | AS_REESTR_OBJECTS_2_251_22_04_01_01.xsd
+ Государственный адресный реестр | data         | Комнаты                           | Ключ                                |                1 | ID                  | ROOMS                | AS_ROOMS_2_251_15_04_01_01.xsd
+ Государственный адресный реестр | data         | Комнаты                           | Код объекта типа INTEGER            |                2 | OBJECTID            | ROOMS                | AS_ROOMS_2_251_15_04_01_01.xsd
+ Государственный адресный реестр | data         | Комнаты                           | Код адр. об. типа UUID              |                3 | OBJECTGUID          | ROOMS                | AS_ROOMS_2_251_15_04_01_01.xsd
+ Государственный адресный реестр | data         | Комнаты                           | ID изменившей транзакции            |                4 | CHANGEID            | ROOMS                | AS_ROOMS_2_251_15_04_01_01.xsd
+ Государственный адресный реестр | data         | Комнаты                           | № комнаты или офиса                 |                5 | NUMBER              | ROOMS                | AS_ROOMS_2_251_15_04_01_01.xsd
+ Государственный адресный реестр | data         | Комнаты                           | Тип комнаты или офиса               |                6 | ROOMTYPE            | ROOMS                | AS_ROOMS_2_251_15_04_01_01.xsd
+ Государственный адресный реестр | data         | Комнаты                           | Статус действия над записью         |                7 | OPERTYPEID          | ROOMS                | AS_ROOMS_2_251_15_04_01_01.xsd
+ Государственный адресный реестр | data         | Комнаты                           | Код с предыдущей истор. зап.        |                8 | PREVID              | ROOMS                | AS_ROOMS_2_251_15_04_01_01.xsd
+ Государственный адресный реестр | data         | Комнаты                           | Код с последующей истор. зап.       |                9 | NEXTID              | ROOMS                | AS_ROOMS_2_251_15_04_01_01.xsd
+ Государственный адресный реестр | data         | Комнаты                           | Дата внесения                       |               10 | UPDATEDATE          | ROOMS                | AS_ROOMS_2_251_15_04_01_01.xsd
+ Государственный адресный реестр | data         | Комнаты                           | Начало действия записи              |               11 | STARTDATE           | ROOMS                | AS_ROOMS_2_251_15_04_01_01.xsd
+ Государственный адресный реестр | data         | Комнаты                           | Окончание действия записи           |               12 | ENDDATE             | ROOMS                | AS_ROOMS_2_251_15_04_01_01.xsd
+ Государственный адресный реестр | data         | Комнаты                           | Статус актуальности адр. об. ФИАС   |               13 | ISACTUAL            | ROOMS                | AS_ROOMS_2_251_15_04_01_01.xsd
+ Государственный адресный реестр | data         | Комнаты                           | Признак действующего адр. об.       |               14 | ISACTIVE            | ROOMS                | AS_ROOMS_2_251_15_04_01_01.xsd
+ Государственный адресный реестр | data         | Типы комнат                       | Код типа                            |                1 | ID                  | ROOM_TYPES           | AS_ROOM_TYPES_2_251_17_04_01_01.xsd
+ Государственный адресный реестр | data         | Типы комнат                       | Наим.                               |                2 | NAME                | ROOM_TYPES           | AS_ROOM_TYPES_2_251_17_04_01_01.xsd
+ Государственный адресный реестр | data         | Типы комнат                       | Краткое наим.                       |                3 | SHORTNAME           | ROOM_TYPES           | AS_ROOM_TYPES_2_251_17_04_01_01.xsd
+ Государственный адресный реестр | data         | Типы комнат                       | Описание                            |                4 | DESC                | ROOM_TYPES           | AS_ROOM_TYPES_2_251_17_04_01_01.xsd
+ Государственный адресный реестр | data         | Типы комнат                       | Дата внесения                       |                5 | UPDATEDATE          | ROOM_TYPES           | AS_ROOM_TYPES_2_251_17_04_01_01.xsd
+ Государственный адресный реестр | data         | Типы комнат                       | Начало действия записи              |                6 | STARTDATE           | ROOM_TYPES           | AS_ROOM_TYPES_2_251_17_04_01_01.xsd
+ Государственный адресный реестр | data         | Типы комнат                       | Окончание действия записи           |                7 | ENDDATE             | ROOM_TYPES           | AS_ROOM_TYPES_2_251_17_04_01_01.xsd
+ Государственный адресный реестр | data         | Типы комнат                       | Статус активности                   |                8 | ISACTIVE            | ROOM_TYPES           | AS_ROOM_TYPES_2_251_17_04_01_01.xsd
+ Государственный адресный реестр | data         | Земельные участки                 | Ключ                                |                1 | ID                  | STEADS               | AS_STEADS_2_251_18_04_01_01.xsd
+ Государственный адресный реестр | data         | Земельные участки                 | Код объекта типа INTEGER            |                2 | OBJECTID            | STEADS               | AS_STEADS_2_251_18_04_01_01.xsd
+ Государственный адресный реестр | data         | Земельные участки                 | Код адр. об. типа UUID              |                3 | OBJECTGUID          | STEADS               | AS_STEADS_2_251_18_04_01_01.xsd
+ Государственный адресный реестр | data         | Земельные участки                 | ID изменившей транзакции            |                4 | CHANGEID            | STEADS               | AS_STEADS_2_251_18_04_01_01.xsd
+ Государственный адресный реестр | data         | Земельные участки                 | № земельного участка                |                5 | NUMBER              | STEADS               | AS_STEADS_2_251_18_04_01_01.xsd
+ Государственный адресный реестр | data         | Земельные участки                 | Статус действия над записью         |                6 | OPERTYPEID          | STEADS               | AS_STEADS_2_251_18_04_01_01.xsd
+ Государственный адресный реестр | data         | Земельные участки                 | Код с предыдущей истор. зап.        |                7 | PREVID              | STEADS               | AS_STEADS_2_251_18_04_01_01.xsd
+ Государственный адресный реестр | data         | Земельные участки                 | Код с последующей истор. зап.       |                8 | NEXTID              | STEADS               | AS_STEADS_2_251_18_04_01_01.xsd
+ Государственный адресный реестр | data         | Земельные участки                 | Дата внесения                       |                9 | UPDATEDATE          | STEADS               | AS_STEADS_2_251_18_04_01_01.xsd
+ Государственный адресный реестр | data         | Земельные участки                 | Начало действия записи              |               10 | STARTDATE           | STEADS               | AS_STEADS_2_251_18_04_01_01.xsd
+ Государственный адресный реестр | data         | Земельные участки                 | Окончание действия записи           |               11 | ENDDATE             | STEADS               | AS_STEADS_2_251_18_04_01_01.xsd
+ Государственный адресный реестр | data         | Земельные участки                 | Статус актуальности адр. об. ФИАС   |               12 | ISACTUAL            | STEADS               | AS_STEADS_2_251_18_04_01_01.xsd
+ Государственный адресный реестр | data         | Земельные участки                 | Признак действующего адр. об.       |               13 | ISACTIVE            | STEADS               | AS_STEADS_2_251_18_04_01_01.xsd
+                                 |              | Типы нормативных документов       |                                     |                  |                     | NORMATIVE_DOCS_TYPES | 
+                                 |              | Виды нормативных документов       |                                     |                  |                     | NORMATIVE_DOCS_KINDS | 
+(275 rows)
+
+select * from xsd.program_call_parameters;
+            table_name             |  xml_file_prefix  |                                                                                                                bash                                                                                                                 
+-----------------------------------+-------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Типы домов                        | HOUSE_TYPES       |  -t '"data"."Типы домов"' -a 'ID,NAME,SHORTNAME,DESC,UPDATEDATE,STARTDATE,ENDDATE,ISACTIVE' -p 'HOUSETYPES/HOUSETYPE' 
+ Иерархия муниципальная            | MUN_HIERARCHY     |  -t '"data"."Иерархия муниципальная"' -a 'ID,OBJECTID,PARENTOBJID,CHANGEID,OKTMO,PREVID,NEXTID,UPDATEDATE,STARTDATE,ENDDATE,ISACTIVE,PATH' -p 'ITEMS/ITEM' 
+ Документы обоснования адресации   | NORMATIVE_DOCS    |  -t '"data"."Документы обоснования адресации"' -a 'ID,NAME,DATE,NUMBER,TYPE,KIND,UPDATEDATE,ORGNAME,REGNUM,REGDATE,ACCDATE,COMMENT' -p 'NORMDOCS/NORMDOC' 
+ Параметры машиномест              | CARPLACES_PARAMS  |  -t '"data"."Параметры машиномест"' -a 'ID,OBJECTID,CHANGEID,CHANGEIDEND,TYPEID,VALUE,UPDATEDATE,STARTDATE,ENDDATE' -p 'PARAMS/PARAM' 
+ Параметры адресных объектов       | ADDR_OBJ_PARAMS   |  -t '"data"."Параметры адресных объектов"' -a 'ID,OBJECTID,CHANGEID,CHANGEIDEND,TYPEID,VALUE,UPDATEDATE,STARTDATE,ENDDATE' -p 'PARAMS/PARAM' 
+ Типы адресных объектов            | ADDR_OBJ_TYPES    |  -t '"data"."Типы адресных объектов"' -a 'ID,LEVEL,SHORTNAME,NAME,DESC,UPDATEDATE,STARTDATE,ENDDATE,ISACTIVE' -p 'ADDRESSOBJECTTYPES/ADDRESSOBJECTTYPE' 
+ Адресообразующие элементы         | ADDR_OBJ          |  -t '"data"."Адресообразующие элементы"' -a 'ID,OBJECTID,OBJECTGUID,CHANGEID,NAME,TYPENAME,LEVEL,OPERTYPEID,PREVID,NEXTID,UPDATEDATE,STARTDATE,ENDDATE,ISACTUAL,ISACTIVE' -p 'ADDRESSOBJECTS/OBJECT' 
+ Параметры квартир                 | APARTMENTS_PARAMS |  -t '"data"."Параметры квартир"' -a 'ID,OBJECTID,CHANGEID,CHANGEIDEND,TYPEID,VALUE,UPDATEDATE,STARTDATE,ENDDATE' -p 'PARAMS/PARAM' 
+ Иерархия административная         | ADM_HIERARCHY     |  -t '"data"."Иерархия административная"' -a 'ID,OBJECTID,PARENTOBJID,CHANGEID,REGIONCODE,AREACODE,CITYCODE,PLACECODE,PLANCODE,STREETCODE,PREVID,NEXTID,UPDATEDATE,STARTDATE,ENDDATE,ISACTIVE,PATH' -p 'ITEMS/ITEM' 
+ № домов улиц населённых пунктов   | HOUSES            |  -t '"data"."№ домов улиц населённых пунктов"' -a 'ID,OBJECTID,OBJECTGUID,CHANGEID,HOUSENUM,ADDNUM1,ADDNUM2,HOUSETYPE,ADDTYPE1,ADDTYPE2,OPERTYPEID,PREVID,NEXTID,UPDATEDATE,STARTDATE,ENDDATE,ISACTUAL,ISACTIVE' -p 'HOUSES/HOUSE' 
+ Параметры домов                   | HOUSES_PARAMS     |  -t '"data"."Параметры домов"' -a 'ID,OBJECTID,CHANGEID,CHANGEIDEND,TYPEID,VALUE,UPDATEDATE,STARTDATE,ENDDATE' -p 'PARAMS/PARAM' 
+ Машино-места                      | CARPLACES         |  -t '"data"."Машино-места"' -a 'ID,OBJECTID,OBJECTGUID,CHANGEID,NUMBER,OPERTYPEID,PREVID,NEXTID,UPDATEDATE,STARTDATE,ENDDATE,ISACTUAL,ISACTIVE' -p 'CARPLACES/CARPLACE' 
+ Комнаты                           | ROOMS             |  -t '"data"."Комнаты"' -a 'ID,OBJECTID,OBJECTGUID,CHANGEID,NUMBER,ROOMTYPE,OPERTYPEID,PREVID,NEXTID,UPDATEDATE,STARTDATE,ENDDATE,ISACTUAL,ISACTIVE' -p 'ROOMS/ROOM' 
+ Типы помещений                    | APARTMENT_TYPES   |  -t '"data"."Типы помещений"' -a 'ID,NAME,SHORTNAME,DESC,UPDATEDATE,STARTDATE,ENDDATE,ISACTIVE' -p 'APARTMENTTYPES/APARTMENTTYPE' 
+ Типы параметров                   | PARAM_TYPES       |  -t '"data"."Типы параметров"' -a 'ID,NAME,CODE,DESC,UPDATEDATE,STARTDATE,ENDDATE,ISACTIVE' -p 'PARAMTYPES/PARAMTYPE' 
+ Статусы действия                  | OPERATION_TYPES   |  -t '"data"."Статусы действия"' -a 'ID,NAME,SHORTNAME,DESC,UPDATEDATE,STARTDATE,ENDDATE,ISACTIVE' -p 'OPERATIONTYPES/OPERATIONTYPE' 
+ Параметры адр. эл. и недвижимости | PARAM             |  -t '"data"."Параметры адр. эл. и недвижимости"' -a 'ID,OBJECTID,CHANGEID,CHANGEIDEND,TYPEID,VALUE,UPDATEDATE,STARTDATE,ENDDATE' -p 'PARAMS/PARAM' 
+ Операции переподчинения           | ADDR_OBJ_DIVISION |  -t '"data"."Операции переподчинения"' -a 'ID,PARENTID,CHILDID,CHANGEID' -p 'ITEMS/ITEM' 
+ Типы комнат                       | ROOM_TYPES        |  -t '"data"."Типы комнат"' -a 'ID,NAME,SHORTNAME,DESC,UPDATEDATE,STARTDATE,ENDDATE,ISACTIVE' -p 'ROOMTYPES/ROOMTYPE' 
+ Помещения                         | APARTMENTS        |  -t '"data"."Помещения"' -a 'ID,OBJECTID,OBJECTGUID,CHANGEID,NUMBER,APARTTYPE,OPERTYPEID,PREVID,NEXTID,UPDATEDATE,STARTDATE,ENDDATE,ISACTUAL,ISACTIVE' -p 'APARTMENTS/APARTMENT' 
+ История изменений                 | CHANGE_HISTORY    |  -t '"data"."История изменений"' -a 'CHANGEID,OBJECTID,ADROBJECTID,OPERTYPEID,NDOCID,CHANGEDATE' -p 'ITEMS/ITEM' 
+ Параметры помещений               | ROOMS_PARAMS      |  -t '"data"."Параметры помещений"' -a 'ID,OBJECTID,CHANGEID,CHANGEIDEND,TYPEID,VALUE,UPDATEDATE,STARTDATE,ENDDATE' -p 'PARAMS/PARAM' 
+ Земельные участки                 | STEADS            |  -t '"data"."Земельные участки"' -a 'ID,OBJECTID,OBJECTGUID,CHANGEID,NUMBER,OPERTYPEID,PREVID,NEXTID,UPDATEDATE,STARTDATE,ENDDATE,ISACTUAL,ISACTIVE' -p 'STEADS/STEAD' 
+ Уровни адресных объектов          | OBJECT_LEVELS     |  -t '"data"."Уровни адресных объектов"' -a 'LEVEL,NAME,SHORTNAME,UPDATEDATE,STARTDATE,ENDDATE,ISACTIVE' -p 'OBJECTLEVELS/OBJECTLEVEL' 
+ Коды адресных элементов           | REESTR_OBJECTS    |  -t '"data"."Коды адресных элементов"' -a 'OBJECTID,CREATEDATE,CHANGEID,LEVELID,UPDATEDATE,OBJECTGUID,ISACTIVE' -p 'REESTR_OBJECTS/OBJECT' 
+ Параметры земельных участков      | STEADS_PARAMS     |  -t '"data"."Параметры земельных участков"' -a 'ID,OBJECTID,CHANGEID,CHANGEIDEND,TYPEID,VALUE,UPDATEDATE,STARTDATE,ENDDATE' -p 'PARAMS/PARAM' 
+ Добавочные параметры домов        | ADDHOUSE_TYPES    |  -t '"data"."Добавочные параметры домов"' -a 'ID,OBJECTID,CHANGEID,CHANGEIDEND,TYPEID,VALUE,UPDATEDATE,STARTDATE,ENDDATE' -p 'PARAMS/PARAM' 
+(27 rows)
+
