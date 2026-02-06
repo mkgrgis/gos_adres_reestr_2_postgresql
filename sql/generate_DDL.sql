@@ -2,7 +2,7 @@ select * from xsd.transport_files;
 select * from xsd.transport_attributes;
 
 -- Генерация выражений ЯОД/DDL
-select 'CREATE SCHEMA IF NOT EXIST "' || set_config('ГАР.схема', 'meta2', false) ||'";';
+select 'CREATE SCHEMA IF NOT EXIST "' || set_config('ГАР.схема', 'data', false) ||'";';
 select * from xsd.table_ddl;
 select ddl from xsd.table_ddl;
 
@@ -21,10 +21,10 @@ select table_catalog,
        table_schema,
        table_name,
        tf.xml_file_prefix,
-       tf.xsd_file_prefix,
+       tf.xsd_filename,
        tf.root_node,
        tf.singular_transport_node,
-       tf.descr_singular
+       tf.xsd_descr_singular
   from t
   full join xsd.transport_files tf
  using (table_name);
@@ -48,17 +48,10 @@ select table_catalog,
        ordinal_position,
        transport_attribute,
        xml_file_prefix,
-       xsd_file_prefix
+       xsd_filename
   from c
   full join xsd.transport_attributes ta
  using (table_name, column_name);
-
--- Известная ошибка ГАР
-DELETE FROM xsd.pg_columns
-	WHERE table_catalog='Государственный адресный реестр' AND table_schema='public' AND table_name='№ домов улиц населённых пунктов' AND column_name='Дополнительный № дома 2' AND ordinal_position=7 AND transport_attribute IS NULL AND xml_file_prefix IS NULL;
-UPDATE xsd.pg_columns
-	SET column_name='Дополнительный № дома 2'
-	WHERE table_catalog='Государственный адресный реестр' AND table_schema='public' AND table_name='№ домов улиц населённых пунктов' AND column_name='Дополнительный № дома 1' AND ordinal_position=6 AND transport_attribute='ADDNUM2' AND xml_file_prefix='HOUSES';
 
 -- XML атрибуты уникальны, хотя могут быть недозаполнены
 ALTER TABLE xsd.pg_columns ADD CONSTRAINT pg_columns_xml_un UNIQUE (transport_attribute,xml_file_prefix);

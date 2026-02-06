@@ -1,9 +1,3 @@
-export PGPASSWORD='1234567890';
-export PGDATABASE='Государственный адресный реестр';
-export PGUSER='Государственный адресный реестр';
-export PGPORT=5432;
-export PGHOST=127.0.0.1;
-
 mkdir test/result;
 
 echo "ФАЙЛЫ ГАР
@@ -22,4 +16,9 @@ diff test/expected/att.out test/result/att.out > test/att.diff;
 ddf='sql/ГАР_pgDDL.sql';
 cat "$ddf" | psql -e > test/result/ddl.out || true;
 diff test/expected/ddl.out test/result/ddl.out > test/ddl.diff;
+[ $? -eq 0 ] && echo "Успешно";
+
+dct='sql/dict_xml_pg.sql';
+cat "$dct" | psql -e > test/result/dict_xml_pg.out || true;
+diff test/expected/dict_xml_pg.out test/result/dict_xml_pg.out > test/dict_xml_pg.diff;
 [ $? -eq 0 ] && echo "Успешно";
