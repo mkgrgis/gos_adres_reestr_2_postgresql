@@ -51,7 +51,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: Провал_в_схеме_${{ env.test_schema }}
+          name: Test_diff_sch_${{ env.test_schema }}
           path: |
             test/
           retention-days: 4
